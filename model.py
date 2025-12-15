@@ -43,11 +43,11 @@ class LazyPositionalEncoding(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if not hasattr(self, "encoding"):
             _, L, F = x.shape  # B L F
-            self._instantiate_encoding(L, F)
+            self._instantiate(L, F)
             self.encoding = self.encoding.to(x.device, x.dtype, non_blocking=True)
         return x + self.encoding
 
-    def _instantiate_encoding(self, seq_len: int, d_model: int):
+    def _instantiate(self, seq_len: int, d_model: int):
         encoding = torch.zeros(seq_len, d_model)  # L F
         dimension = torch.arange(d_model).repeat(seq_len, 1)  # L F
         div_term = 10_000 ** (2 * dimension / d_model)
