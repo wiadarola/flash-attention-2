@@ -35,6 +35,32 @@ class Transformer(nn.Module):
         return x
 
 
+class LazyPositionalEncoding(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.encoding: torch.Tensor
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if not hasattr(self, "encoding"):
+            _, L, F = x.shape  # B L F
+            self._instantiate_encoding(L, F)
+            self.encoding = self.encoding.to(x.device, x.dtype, non_blocking=True)
+        return x + self.encoding
+
+    def _instantiate_encoding(self, seq_len: int, d_model: int):
+        encoding = torch.zeros(seq_len, d_model)  # L F
+        dimension = torch.arange(d_model).repeat(seq_len, 1)  # L F
+        div_term = 10_000 ** (2 * dimension / d_model)
+        position = torch.arange(seq_len).repeat(d_model, 1).T  # L F
+
+        theta = position / div_term
+        encoding[:, 0::2] = theta[:, 0::2].sin()
+        encoding[:, 1::2] = theta[:, 1::2].cos()
+        encoding = encoding.unsqueeze(0)
+
+        self.register_buffer("encoding", encoding, persistent=True)  # 1 L F
+
+
 class Encoder(nn.Module):
     def __init__(self, d_model: int, n_heads: int, p_drop: float, d_ff: int):
         super().__init__()
@@ -70,32 +96,6 @@ class Decoder(nn.Module):
         x = self.drop2(self.ln2(x + self.cross_attn(x, e, mask)))
         x = self.drop3(self.ln3(x + self.ffn(x)))
         return x
-
-
-class LazyPositionalEncoding(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.encoding: torch.Tensor
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if not hasattr(self, "encoding"):
-            _, L, F = x.shape  # B L F
-            self._instantiate_encoding(L, F)
-            self.encoding = self.encoding.to(x.device, x.dtype, non_blocking=True)
-        return x + self.encoding
-
-    def _instantiate_encoding(self, seq_len: int, d_model: int):
-        encoding = torch.zeros(seq_len, d_model)  # L F
-        dimension = torch.arange(d_model).repeat(seq_len, 1)  # L F
-        div_term = 10_000 ** (2 * dimension / d_model)
-        position = torch.arange(seq_len).repeat(d_model, 1).T  # L F
-
-        theta = position / div_term
-        encoding[:, 0::2] = theta[:, 0::2].sin()
-        encoding[:, 1::2] = theta[:, 1::2].cos()
-        encoding = encoding.unsqueeze(0)
-
-        self.register_buffer("encoding", encoding, persistent=True)  # 1 L F
 
 
 class SelfAttention(nn.Module):
