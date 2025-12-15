@@ -48,15 +48,14 @@ class LazyPositionalEncoding(nn.Module):
         return x + self.encoding
 
     def _instantiate(self, seq_len: int, d_model: int):
-        encoding = torch.zeros(seq_len, d_model)  # L F
+        encoding = torch.zeros(1, seq_len, d_model)  # 1 L F
         dimension = torch.arange(d_model).repeat(seq_len, 1)  # L F
         div_term = 10_000 ** (2 * dimension / d_model)
         position = torch.arange(seq_len).repeat(d_model, 1).T  # L F
 
         theta = position / div_term
-        encoding[:, 0::2] = theta[:, 0::2].sin()
-        encoding[:, 1::2] = theta[:, 1::2].cos()
-        encoding = encoding.unsqueeze(0)
+        encoding[..., 0::2] = theta[:, 0::2].sin()
+        encoding[..., 1::2] = theta[:, 1::2].cos()
 
         self.register_buffer("encoding", encoding, persistent=True)  # 1 L F
 
