@@ -6,3 +6,4 @@ tensorboard==2.20.0
 datasets==4.4.1
 hydra-core==1.3.2
 sentencepiece==0.2.1
+sacremoses==0.1.1
