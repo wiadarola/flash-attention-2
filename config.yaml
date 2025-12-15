@@ -1,0 +1,33 @@
+dataset:
+  train:
+    batch_size: 32
+    shuffle: true
+    num_workers: 2
+    pin_memory: true
+    drop_last: true
+    persistent_workers: true
+  valid:
+    batch_size: 32
+    num_workers: 2
+    pin_memory: true
+    drop_last: true
+    persistent_workers: true
+
+model:
+  d_model: 512
+  n_layers: 6
+  n_heads: 8
+  p_drop: 0.1
+  d_ff: 2048
+  d_vocab: 58101  # Token values range [0, 58100]
+
+criterion:
+  label_smoothing: 0.1
+
+optimizer:
+  lr: 1.0  # Base LR only acts as a multiplier on the LR scheduler
+  betas: [0.9, 0.98]
+
+trainer:
+  num_epochs: 50
+  warmup_steps: 4000
