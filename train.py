@@ -57,11 +57,11 @@ def main(cfg: omegaconf.DictConfig):
     criterion = nn.CrossEntropyLoss(**cfg.criterion)
     optimizer = torch.optim.AdamW(model.parameters(), **cfg.optimizer)
 
-    def warmup_inv_sqrt_lr(step_num: int):
-        safe_step_num = max(step_num, 1e-9)
+    def warmup_inv_sqrt_lr(step: int):
+        safe_step = max(step, 1e-9)
         d_model = cfg.model.d_model
         warmup_steps = cfg.trainer.warmup_steps
-        return d_model**-0.5 * min(safe_step_num**-0.5, safe_step_num * warmup_steps**-1.5)
+        return d_model**-0.5 * min(safe_step**-0.5, safe_step * warmup_steps**-1.5)
 
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, warmup_inv_sqrt_lr)
 
@@ -71,8 +71,9 @@ def main(cfg: omegaconf.DictConfig):
     log_dir = HydraConfig.get().run.dir
     logging.info(f"Saving experiment to: {log_dir}")
 
-    for _ in tqdm(range(cfg.trainer.num_epochs), "Epoch"):
-        with SummaryWriter(log_dir) as writer:
+    with SummaryWriter(log_dir) as writer:
+        logging.info(f"Train begin")
+        for _ in tqdm(range(cfg.trainer.num_epochs), "Epoch"):
             # --- Train ---
             model.train()
             mean_loss.reset()
@@ -108,6 +109,7 @@ def main(cfg: omegaconf.DictConfig):
                 best_val_loss = val_loss
             writer.add_scalar("loss/valid", val_loss, scheduler._step_count)
 
+        logging.info("Train end. Saving final model state.")
         torch.save(model.state_dict(), f"{log_dir}/checkpoints/model_state_last.pt")
 
 
