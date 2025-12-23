@@ -29,8 +29,13 @@ class Transformer(nn.Module):
     def forward(self, x: torch.Tensor, attn_mask: torch.Tensor) -> torch.Tensor:
         x = self.embedding(x) * math.sqrt(self.d_model)
         x = self.pos_encoding(x)
-        encoded = self.encoders(x, attn_mask)
-        decoded = self.decoders(x, encoded, attn_mask)
+
+        for encoder in self.encoders:
+            encoded = encoder(x, attn_mask)
+
+        for decoder in self.decoders:
+            decoded = decoder(x, encoded, attn_mask)
+
         x = self.linear(decoded)
         return x
 
@@ -42,21 +47,21 @@ class LazyPositionalEncoding(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if not hasattr(self, "encoding"):
-            _, L, F = x.shape  # B L F
+            _, L, F = x.shape  # B N F
             self._instantiate(L, F)
             self.encoding = self.encoding.to(x.device, x.dtype, non_blocking=True)
         return x + self.encoding
 
     def _instantiate(self, seq_len: int, d_model: int):
-        dimension = torch.arange(d_model).repeat(seq_len, 1)  # L F
+        dimension = torch.arange(d_model).repeat(seq_len, 1)  # N F
         div_term = 10_000 ** (2 * dimension / d_model)
-        position = torch.arange(seq_len).repeat(d_model, 1).T  # L F
+        position = torch.arange(seq_len).repeat(d_model, 1).T  # N F
         theta = position / div_term
 
-        encoding = torch.empty(1, seq_len, d_model)  # 1 L F
+        encoding = torch.empty(1, seq_len, d_model)  # 1 N F
         encoding[..., 0::2] = theta[:, 0::2].sin()
         encoding[..., 1::2] = theta[:, 1::2].cos()
-        self.register_buffer("encoding", encoding, persistent=True)  # 1 L F
+        self.register_buffer("encoding", encoding, persistent=True)  # 1 N F
 
 
 class Encoder(nn.Module):
@@ -79,7 +84,6 @@ class Decoder(nn.Module):
     def __init__(self, d_model: int, n_heads: int, p_drop: float, d_ff: int):
         super().__init__()
         self.self_attn = SelfAttention(d_model, n_heads)
-        self.causal_mask = torch.triu(torch.full((128, 128), -torch.inf), diagonal=1)
         self.ln1 = nn.LayerNorm(d_model)
         self.drop1 = nn.Dropout(p_drop)
         self.cross_attn = EncoderDecoderAttention(d_model, n_heads)
@@ -88,6 +92,10 @@ class Decoder(nn.Module):
         self.ffn = FeedForwardNetwork(d_model, d_ff)
         self.ln3 = nn.LayerNorm(d_model)
         self.drop3 = nn.Dropout(p_drop)
+        self.causal_mask: torch.Tensor
+        self.register_buffer(
+            "causal_mask", torch.triu(torch.full((128, 128), -torch.inf), diagonal=1)
+        )
 
     def forward(self, x: torch.Tensor, e: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         x = self.drop1(self.ln1(x + self.self_attn(x, self.causal_mask + mask)))
