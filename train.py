@@ -38,8 +38,8 @@ def load_multi30k_dataset() -> DatasetDict:
 
 def prep_batch(batch: dict[str, torch.Tensor], device: torch.device) -> tuple[torch.Tensor, ...]:
     """Prepare and move inputs, attention masks, and targets from the HuggingFace defaults"""
-    x = batch["input_ids"].unsqueeze(-1).to(device, torch.float, non_blocking=True)  # B S L C
-    y = batch["labels"].to(device, non_blocking=True)  # B S L
+    x = batch["input_ids"].unsqueeze(-1).to(device, torch.float, non_blocking=True)  # B N C
+    y = batch["labels"].to(device, non_blocking=True)  # B N
     mask = torch.where(batch["attention_mask"] == 1, 0, -torch.inf)[:, None, None, :].to(device)
     return x, y, mask
 
@@ -90,14 +90,14 @@ def main(cfg: omegaconf.DictConfig):
                 writer.add_scalar("LR", scheduler.get_last_lr()[0], scheduler._step_count)
             writer.add_scalar("loss/train", mean_loss.compute(), scheduler._step_count)
 
-            # --- Eval ---
+            # --- Validate ---
             model.eval()
             mean_loss.reset()
             with torch.no_grad():
                 for batch in tqdm(valid_loader, "Valid", leave=False):
                     x, y, attn_mask = prep_batch(batch, device)
 
-                    y_hat = model(x, attn_mask)
+                    y_hat = model(x, attn_mask).transpose(1, 2)
                     loss: torch.Tensor = criterion(y_hat, y)
 
                     mean_loss.update(loss)
