@@ -13,7 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizer
 
-from model import Transformer
+from src.model import Transformer
 
 
 def load_multi30k_dataset() -> DatasetDict:
@@ -28,7 +28,7 @@ def load_multi30k_dataset() -> DatasetDict:
             max_length=128,
         )
 
-    dataset: DatasetDict = load_dataset("bentrevett/multi30k")  # type: ignore
+    dataset: DatasetDict = load_dataset("bentrevett/multi30k")  # pyright: ignore
     dataset.set_format(type="torch", columns=["en", "de"])
     tokenizer = AutoTokenizer.from_pretrained("Helsinki-NLP/opus-mt-de-en")
     map_fn = functools.partial(tokenize, tokenizer=tokenizer)
@@ -47,8 +47,8 @@ def prep_batch(batch: dict[str, torch.Tensor], device: torch.device) -> tuple[to
 @hydra.main(config_path=".", config_name="config", version_base=None)
 def main(cfg: omegaconf.DictConfig):
     dataset = load_multi30k_dataset()
-    train_loader = DataLoader(dataset["train"], **cfg.dataset.train)
-    valid_loader = DataLoader(dataset["validation"], **cfg.dataset.valid)
+    train_loader = DataLoader(dataset["train"], **cfg.dataset.train)  # pyright: ignore
+    valid_loader = DataLoader(dataset["validation"], **cfg.dataset.valid)  # pyright: ignore
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.info(f"Using device: {device}")
