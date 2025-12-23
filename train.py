@@ -87,7 +87,7 @@ def main(cfg: omegaconf.DictConfig):
                 scheduler.step()
 
                 mean_loss.update(loss)
-                writer.add_scalar("LR", scheduler.get_last_lr()[0], scheduler._step_count)
+                writer.add_scalar("lr", scheduler.get_last_lr()[0], scheduler._step_count)
             writer.add_scalar("loss/train", mean_loss.compute(), scheduler._step_count)
 
             # --- Validate ---
@@ -104,10 +104,11 @@ def main(cfg: omegaconf.DictConfig):
 
             val_loss = mean_loss.compute()
             if val_loss < best_val_loss:
-                torch.save(model.state_dict(), "model_state_best_val.pt")
+                torch.save(model.state_dict(), f"{log_dir}/checkpoints/model_state_best_val.pt")
+                best_val_loss = val_loss
             writer.add_scalar("loss/valid", val_loss, scheduler._step_count)
 
-        torch.save(model.state_dict(), "model_state_last.pt")
+        torch.save(model.state_dict(), f"{log_dir}/checkpoints/model_state_last.pt")
 
 
 if __name__ == "__main__":
