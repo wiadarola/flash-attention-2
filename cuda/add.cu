@@ -7,7 +7,7 @@ __global__ void add(int N, float *x, float *y) {
 		y[i] = x[i] + y[i];
 }
 
-int main(void) {
+int main() {
 	int N = 1<<20;
 	float *x, *y;
 
