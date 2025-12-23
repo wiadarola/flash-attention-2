@@ -1,13 +1,13 @@
 dataset:
   train:
-    batch_size: 32
+    batch_size: 64
     shuffle: true
     num_workers: 2
     pin_memory: true
     drop_last: true
     persistent_workers: true
   valid:
-    batch_size: 32
+    batch_size: 64
     num_workers: 2
     pin_memory: true
     drop_last: true
